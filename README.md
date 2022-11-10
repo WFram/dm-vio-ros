@@ -1,6 +1,15 @@
 
 # ROS-Wrapper for DM-VIO: Delayed Marginalization Visual-Inertial Odometry
 
+This is a fork of https://github.com/lukasvst/dm-vio-ros. It adds publishing local point cloud and
+metric pose with fixed scale:
+
+* `dmvio/pose`: **Odometry**:
+These poses are the transformations from IMU to world (in fixed metric scale). The scale is fixed once available.
+
+* `dmvio/local_point_cloud`: **PointCloud2**:
+Contains active points represented in inverse camera frame (X - right, Y - downward, Z - forward).
+
 For more information see https://vision.in.tum.de/dm-vio and https://github.com/lukasvst/dm-vio.
 
 This is a ROS-Wrapper for DM-VIO, inspired by the [ROS-Wrapper for DSO](https://github.com/JakobEngel/dso_ros).

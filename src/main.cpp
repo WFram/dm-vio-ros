@@ -179,7 +179,7 @@ void run(IOWrap::PangolinDSOViewer* viewer)
 
 double convertStamp(const ros::Time& time)
 {
-    // We need the timstamp in seconds as double
+    // We need the timestamp in seconds as double
     return time.sec * 1.0 + time.nsec / 1000000000.0;
 }
 
@@ -200,6 +200,7 @@ void vidCb(const sensor_msgs::ImageConstPtr img)
     // undistorter->undistort in the next line.
     std::unique_ptr<ImageAndExposure> undistImg(undistorter->undistort<unsigned char>(&minImg, 1.0, stamp, 1.0f));
 
+    // TODO: Here time offset might be involved
     imuInt.addImage(std::move(undistImg), stamp);
 }
 

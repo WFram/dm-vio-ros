@@ -24,23 +24,32 @@
 #define DMVIO_ROS_ROSOUTPUTWRAPPER_H
 
 #include <IOWrapper/Output3DWrapper.h>
-#include <ros/ros.h>
 #include <mutex>
+
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <ros/ros.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_ros/transform_broadcaster.h>
+
+#include <GTSAMIntegration/PoseTransformation.h>
+#include <GTSAMIntegration/PoseTransformationIMU.h>
 
 namespace dmvio
 {
 
-// We publish 3 topics by default:
-// dmvio/frame_tracked: DMVIOPoseMsg
-// dmvio/unscaled_pose: PoseStamped
-// dmvio/metric_poses: PoseStamped
-// For more details on these see the README.md file.
-class ROSOutputWrapper : public dso::IOWrap::Output3DWrapper
-{
-public:
-    ROSOutputWrapper();
+    // We publish 3 topics by default:
+    // dmvio/frame_tracked: DMVIOPoseMsg
+    // dmvio/unscaled_pose: PoseStamped
+    // dmvio/metric_poses: PoseStamped
+    // For more details on these see the README.md file.
+    class ROSOutputWrapper : public dso::IOWrap::Output3DWrapper
+    {
+    public:
+        ROSOutputWrapper();
 
-    /*
+        /*
      * Usage:
      * Called once after each keyframe is optimized and passes the new transformation from DSO frame (worldToCam in
      * DSO scale) to metric frame (imuToWorld in metric scale).
@@ -49,37 +58,56 @@ public:
      * The caller can create copy however , preferable with the following constructor (as otherwise the shared_ptrs will be kept).
      * TransformDSOToIMU(TransformDSOToIMU& other, std::shared_ptr<bool> optScale, std::shared_ptr<bool> optGravity, std::shared_ptr<bool> optT_cam_imu);
      */
-    virtual void publishTransformDSOToIMU(const dmvio::TransformDSOToIMU& transformDSOToIMU) override;
+        virtual void publishTransformDSOToIMU(const dmvio::TransformDSOToIMU &transformDSOToIMU) override;
 
-    /*
+        /*
      * Usage:
      * Called every time the status of the system changes.
      */
-    virtual void publishSystemStatus(dmvio::SystemStatus systemStatus) override;
+        virtual void publishSystemStatus(dmvio::SystemStatus systemStatus) override;
 
 
-    /* Usage:
+        /* Usage:
      * Called once for each tracked frame, with the real-time, low-delay frame pose.
      *
      * Calling:
      * Always called, no overhead if not used.
      */
-    virtual void publishCamPose(dso::FrameShell* frame, dso::CalibHessian* HCalib) override;
+        virtual void publishCamPose(dso::FrameShell *frame, dso::CalibHessian *HCalib) override;
 
-    // In case you want to additionally publish pointclouds or keyframe poses you need to override Output3DWrapper::publishKeyframes
+        // In case you want to additionally publish pointclouds or keyframe poses you need to override Output3DWrapper::publishKeyframes
 
-private:
-    ros::NodeHandle nh;
-    ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
+        virtual void publishKeyframes(std::vector<dso::FrameHessian *> &frames,
+                                      bool final,
+                                      dso::CalibHessian *HCalib) override;
 
-    // Protects transformDSOToIMU.
-    std::mutex mutex;
+        void setFixedScale() { T_FS_DSO.setScale(fixed_scale); }
 
-    std::unique_ptr<dmvio::TransformDSOToIMU> transformDSOToIMU;
-    bool scaleAvailable = false; // True iff transformDSOToIMU contains a valid scale.
-    std::atomic<dmvio::SystemStatus> lastSystemStatus;
-};
+        PoseTransformation::PoseType transformPoseFixedScale(const PoseTransformation::PoseType &pose);
+
+    private:
+        ros::NodeHandle nh;
+        ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
+        ros::Publisher dmvioOdomPublisher, dmvioPointCloudPublisher;
+
+        tf2_ros::TransformBroadcaster dmvioWcamBr;
+
+        double fixed_scale = 1.0;
+        Sophus::Sim3d T_FS_DSO;
+
+        float scaledTH = 1e10;
+        float absTH = 1e10;
+        float minRelBS = 0;
+
+        // Protects transformDSOToIMU.
+        std::mutex mutex;
+
+        std::unique_ptr<dmvio::TransformDSOToIMU> transformDSOToIMU;
+        bool scaleAvailable = false;// True iff transformDSOToIMU contains a valid scale.
+        bool firstScaleAvailable = true;
+        std::atomic<dmvio::SystemStatus> lastSystemStatus;
+    };
 
 
-}
-#endif //DMVIO_ROS_ROSOUTPUTWRAPPER_H
+}// namespace dmvio
+#endif//DMVIO_ROS_ROSOUTPUTWRAPPER_H
