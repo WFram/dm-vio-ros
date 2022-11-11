@@ -34,18 +34,32 @@ using namespace dmvio;
 
 PoseTransformation::PoseType ROSOutputWrapper::transformPoseFixedScale(const PoseTransformation::PoseType &pose)
 {
+    // WF
     Sophus::Sim3d scaledT_w_cam = T_FS_DSO * Sophus::Sim3d(pose).inverse() * T_FS_DSO.inverse();// in fixed metric scale.
-    assert(std::abs(scaledT_w_cam.scale() - 1.0) < 0.0001);
     Sophus::SE3d T_metricW_cam;
 
-    //    Sophus::SO3d R_dsoW_metricW = transformDSOToIMU->getR_dsoW_metricW();
-    //    Sophus::SE3d T_cam_imu = transformDSOToIMU->getT_cam_imu();
-    //    T_metricW_imu = Sophus::SE3d(scaledT_w_cam.matrix()) * T_cam_imu;
-    //    T_metricW_imu = Sophus::SE3d(R_dsoW_metricW.inverse(), Sophus::Vector3d::Zero()) *
-    //                    Sophus::SE3d(scaledT_w_cam.matrix()) * T_cam_imu;
-
+    // Is additional rotation needed?
     T_metricW_cam = Sophus::SE3d(scaledT_w_cam.matrix());
     PoseTransformation::PoseType returning = T_metricW_cam.matrix();
+
+    return returning;
+}
+
+PoseTransformation::PoseType ROSOutputWrapper::transformPointFixedScale(const PoseTransformation::PoseType &pose,
+                                                                        Eigen::Vector3d &point_cam)
+{
+    // WF
+    Sophus::Sim3d T_w_cam = T_FS_DSO * Sophus::Sim3d(pose).inverse() * T_FS_DSO.inverse();// in fixed metric scale.
+    Sophus::Vector3d t_cam_point(point_cam);
+    Sophus::SO3d R_cam_point;
+    Sophus::SE3d T_W_point;
+
+    Sophus::SO3d R_dsoW_metricW = transformDSOToIMU->getR_dsoW_metricW();
+
+    // Is additional rotation needed?
+    T_W_point = Sophus::SE3d(T_w_cam.matrix()) * Sophus::SE3d(R_cam_point, t_cam_point);
+
+    PoseTransformation::PoseType returning = T_W_point.matrix();
 
     return returning;
 }
@@ -62,7 +76,8 @@ dmvio::ROSOutputWrapper::ROSOutputWrapper()
     metricPosePublisher = nh.advertise<geometry_msgs::PoseStamped>("metric_pose", 10);
 
     dmvioOdomPublisher = nh.advertise<nav_msgs::Odometry>("pose", 10);
-    dmvioPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud2>("local_point_cloud", 1);
+    dmvioLocalPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud2>("local_point_cloud", 1);
+    dmvioGlobalPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud2>("global_point_cloud", 1);
 }
 
 
@@ -113,7 +128,6 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
 {
     dmvio_ros::DMVIOPoseMsg msg;
     msg.header.stamp = ros::Time::now();
-    //    msg.header.stamp = ros::Time(frame->timestamp);
     msg.header.frame_id = "world";
 
     auto &camToWorld = frame->camToWorld;
@@ -121,7 +135,6 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
     geometry_msgs::Pose &poseMsg = msg.pose;
     setMsgFromSE3(poseMsg, camToWorld);
 
-    // Also publish unscaled pose on its own (e.g. for visualization in Rviz).
     geometry_msgs::PoseStamped unscaledMsg;
     unscaledMsg.header = msg.header;
     unscaledMsg.pose = poseMsg;
@@ -129,7 +142,6 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
 
     {
         std::unique_lock<std::mutex> lk(mutex);
-        // TODO: we can just set the best scale, fix it and publish the pose with stable scale
         if (transformDSOToIMU && scaleAvailable)
         {
             if (firstScaleAvailable)
@@ -144,7 +156,6 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
             geometry_msgs::PoseStamped scaledMsg;
             scaledMsg.header = msg.header;
 
-            // TODO: probably we need convert this pose to ROS pose
             nav_msgs::Odometry metricOdomMsg;
             metricOdomMsg.header = msg.header;
 
@@ -153,7 +164,6 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
             // The input for transformPose() is Eigen matrix (original SE3 pose was converted to it)
             Sophus::SE3d imuToWorld(transformDSOToIMU->transformPose(camToWorld.inverse().matrix()));
             Sophus::SE3d fixedScaleImuToWorld(transformPoseFixedScale(camToWorld.inverse().matrix()));
-            // TODO: transform with fixed here
             setMsgFromSE3(scaledMsg.pose, imuToWorld);
             setMsgFromSE3(metricOdomMsg.pose.pose, fixedScaleImuToWorld);
 
@@ -190,6 +200,9 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
                                         bool final,
                                         dso::CalibHessian *HCalib)
 {
+    if (!scaleAvailable)
+        return;
+
     float fx = HCalib->fxl();
     float fy = HCalib->fyl();
     float cx = HCalib->cxl();
@@ -200,25 +213,23 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
     float cxi = -cx / fx;
     float cyi = -cy / fy;
 
-    sensor_msgs::PointCloud2 msg;
-    pcl::PointCloud<pcl::PointXYZ> cloud;
+    sensor_msgs::PointCloud2 msg_local_cloud, msg_global_cloud;
+    pcl::PointCloud<pcl::PointXYZ> local_cloud;
 
     long int npoints = 0;
 
     {
         std::unique_lock<std::mutex> lk(mutex);
+        // Frames in sliding window
         for (dso::FrameHessian *fh: frames)
         {
-            // add all traces, inlier and outlier points.
-            npoints += fh->pointHessians.size();
+            npoints += fh->pointHessiansMarginalized.size();
 
-            for (dso::PointHessian *p: fh->pointHessians)
+            for (dso::PointHessian *p: fh->pointHessiansMarginalized)
             {
-                // TODO: solve about coordinate frames
-                Eigen::Vector3f pos_cam;
+                Eigen::Vector3d pos_cam, pos_world;
 
                 // [sx, sy, s]
-                // TODO: consider dx, dy
                 float idpeth = p->idepth_scaled;
                 float idepth_hessian = p->idepth_hessian;
                 float relObsBaseline = p->maxRelBaseline;
@@ -239,19 +250,37 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
                 if (relObsBaseline < minRelBS)
                     continue;
 
-                pos_cam[0] = (p->u * fxi + cxi) * depth;
-                pos_cam[1] = (p->v * fyi + cyi) * depth;
-                pos_cam[2] = depth * (1 + 2 * fxi * (rand() / (float) RAND_MAX - 0.5f));
+                pos_cam[0] = (p->u * fxi + cxi) * depth * fixed_scale;
+                pos_cam[1] = (p->v * fyi + cyi) * depth * fixed_scale;
+                pos_cam[2] = depth * fixed_scale * (1 + 2 * fxi * (rand() / (float) RAND_MAX - 0.5f));
 
-                pcl::PointXYZ point(pos_cam(0), pos_cam(1), pos_cam(2));
+                auto &camToWorld = fh->shell->camToWorld;
+                Sophus::SE3d fixedScalePointToWorld(transformPointFixedScale(camToWorld.inverse().matrix(),
+                                                                             pos_cam));
 
-                cloud.push_back(point);
+                Eigen::Matrix<double, 4, 4> e_fixedScalePointToWorld = fixedScalePointToWorld.matrix();
+
+                for (int i = 0; i < 3; i++)
+                    pos_world[i] = e_fixedScalePointToWorld(i, 3);
+
+                pcl::PointXYZ point_cam(pos_cam(0), pos_cam(1), pos_cam(2));
+                pcl::PointXYZ point_world(pos_world(0), pos_world(1), pos_world(2));
+
+                local_cloud.push_back(point_world);
+                global_cloud.push_back(point_world);
             }
         }
     }
-    pcl::toROSMsg(cloud, msg);
-    msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = "camera";
-    ROS_INFO("Publish PCL");
-    dmvioPointCloudPublisher.publish(msg);
+
+    pcl::toROSMsg(local_cloud, msg_local_cloud);
+    msg_local_cloud.header.stamp = ros::Time::now();
+    msg_local_cloud.header.frame_id = "world";
+    //    msg_local_cloud.header.frame_id = "camera";
+
+    pcl::toROSMsg(global_cloud, msg_global_cloud);
+    msg_global_cloud.header.stamp = msg_local_cloud.header.stamp;
+    msg_global_cloud.header.frame_id = "world";
+
+    dmvioLocalPointCloudPublisher.publish(msg_local_cloud);
+    dmvioGlobalPointCloudPublisher.publish(msg_global_cloud);
 }

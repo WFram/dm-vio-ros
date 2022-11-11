@@ -85,10 +85,15 @@ namespace dmvio
 
         PoseTransformation::PoseType transformPoseFixedScale(const PoseTransformation::PoseType &pose);
 
+        PoseTransformation::PoseType transformPointFixedScale(const PoseTransformation::PoseType &pose,
+                                                              Eigen::Vector3d &point_cam);
+
     private:
         ros::NodeHandle nh;
         ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
-        ros::Publisher dmvioOdomPublisher, dmvioPointCloudPublisher;
+        ros::Publisher dmvioOdomPublisher, dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher;
+
+        pcl::PointCloud<pcl::PointXYZ> global_cloud;
 
         tf2_ros::TransformBroadcaster dmvioWcamBr;
 
