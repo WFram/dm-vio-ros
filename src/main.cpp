@@ -25,25 +25,24 @@
 */
 
 #include <ros/ros.h>
-#include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
-#include "cv_bridge/cv_bridge.h"
+#include <sensor_msgs/image_encodings.h>
 
-#include <thread>
 #include <locale.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <thread>
 
 #include "IOWrapper/Output3DWrapper.h"
 
 #include "util/Undistort.h"
 
 
-#include <boost/thread.hpp>
-#include "dso/util/settings.h"
 #include "dso/util/globalCalib.h"
+#include "dso/util/settings.h"
 #include "util/TimeMeasurement.h"
+#include <boost/thread.hpp>
 
 #include "FullSystem/FullSystem.h"
 
@@ -51,10 +50,10 @@
 
 #include "IOWrapper/Pangolin/PangolinDSOViewer.h"
 
-#include "util/MainSettings.h"
+#include "ROSOutputWrapper.h"
 #include "live/FrameSkippingStrategy.h"
 #include "live/IMUInterpolator.h"
-#include "ROSOutputWrapper.h"
+#include "util/MainSettings.h"
 
 #include <live/FrameContainer.h>
 
@@ -71,23 +70,23 @@ std::unique_ptr<Undistort> undistorter;
 bool stopSystem = false;
 int start = 2;
 
-void run(IOWrap::PangolinDSOViewer* viewer)
+void run(IOWrap::PangolinDSOViewer *viewer)
 {
     bool linearizeOperation = false;
     auto fullSystem = std::make_unique<FullSystem>(linearizeOperation, imuCalibration, imuSettings);
 
-    if(setting_photometricCalibration > 0 && undistorter->photometricUndist == nullptr)
+    if (setting_photometricCalibration > 0 && undistorter->photometricUndist == nullptr)
     {
         printf("ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ");
         exit(1);
     }
 
-    if(undistorter->photometricUndist != nullptr)
+    if (undistorter->photometricUndist != nullptr)
     {
         fullSystem->setGammaFunction(undistorter->photometricUndist->getG());
     }
 
-    if(viewer)
+    if (viewer)
     {
         fullSystem->outputWrapper.push_back(viewer);
     }
@@ -103,10 +102,10 @@ void run(IOWrap::PangolinDSOViewer* viewer)
     int ii = 0;
     int lastResetIndex = 0;
 
-    while(!stopSystem)
+    while (!stopSystem)
     {
         // Skip the first few frames if the start variable is set.
-        if(start > 0 && ii < start)
+        if (start > 0 && ii < start)
         {
             auto pair = frameContainer.getImageAndIMUData();
 
@@ -117,21 +116,21 @@ void run(IOWrap::PangolinDSOViewer* viewer)
 
         auto pair = frameContainer.getImageAndIMUData(frameSkipping.getMaxSkipFrames(frameContainer.getQueueSize()));
 
-        if(!pair.first) continue;
+        if (!pair.first) continue;
 
         fullSystem->addActiveFrame(pair.first.get(), ii, &(pair.second), nullptr);
 
-        if(fullSystem->initFailed || setting_fullResetRequested)
+        if (fullSystem->initFailed || setting_fullResetRequested)
         {
-            if(ii - lastResetIndex < 250 || setting_fullResetRequested)
+            if (ii - lastResetIndex < 250 || setting_fullResetRequested)
             {
                 printf("RESETTING!\n");
-                std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+                std::vector<IOWrap::Output3DWrapper *> wraps = fullSystem->outputWrapper;
                 fullSystem.reset();
-                for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+                for (IOWrap::Output3DWrapper *ow: wraps) ow->reset();
 
                 fullSystem = std::make_unique<FullSystem>(linearizeOperation, imuCalibration, imuSettings);
-                if(undistorter->photometricUndist != nullptr)
+                if (undistorter->photometricUndist != nullptr)
                 {
                     fullSystem->setGammaFunction(undistorter->photometricUndist->getG());
                 }
@@ -142,20 +141,19 @@ void run(IOWrap::PangolinDSOViewer* viewer)
             }
         }
 
-        if(viewer != nullptr && viewer->shouldQuit())
+        if (viewer != nullptr && viewer->shouldQuit())
         {
             std::cout << "User closed window -> Quit!" << std::endl;
             break;
         }
 
-        if(fullSystem->isLost)
+        if (fullSystem->isLost)
         {
             printf("LOST!!\n");
             break;
         }
 
         ++ii;
-
     }
 
     fullSystem->blockUntilMappingIsFinished();
@@ -164,7 +162,7 @@ void run(IOWrap::PangolinDSOViewer* viewer)
 
     dmvio::TimeMeasurement::saveResults(imuSettings.resultsPrefix + "timings.txt");
 
-    for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
+    for (IOWrap::Output3DWrapper *ow: fullSystem->outputWrapper)
     {
         ow->join();
     }
@@ -177,7 +175,7 @@ void run(IOWrap::PangolinDSOViewer* viewer)
     printf("EXIT NOW!\n");
 }
 
-double convertStamp(const ros::Time& time)
+double convertStamp(const ros::Time &time)
 {
     // We need the timestamp in seconds as double
     return time.sec * 1.0 + time.nsec / 1000000000.0;
@@ -191,7 +189,7 @@ void vidCb(const sensor_msgs::ImageConstPtr img)
     assert(cv_ptr->image.type() == CV_8U);
     assert(cv_ptr->image.channels() == 1);
 
-    MinimalImageB minImg((int) cv_ptr->image.cols, (int) cv_ptr->image.rows, (unsigned char*) cv_ptr->image.data);
+    MinimalImageB minImg((int) cv_ptr->image.cols, (int) cv_ptr->image.rows, (unsigned char *) cv_ptr->image.data);
     // Unfortunately the image message does not contain exposure. This means that you cannot use photometric
     // mode 1. But mode 0 will entirely disable the vignette which is far from optimal for fisheye cameras.
     // You can use the new mode 3 however which uses vignette, but does not assume that a full photometric
@@ -200,7 +198,6 @@ void vidCb(const sensor_msgs::ImageConstPtr img)
     // undistorter->undistort in the next line.
     std::unique_ptr<ImageAndExposure> undistImg(undistorter->undistort<unsigned char>(&minImg, 1.0, stamp, 1.0f));
 
-    // TODO: Here time offset might be involved
     imuInt.addImage(std::move(undistImg), stamp);
 }
 
@@ -222,7 +219,7 @@ void imuCb(const sensor_msgs::ImuConstPtr imu)
     imuInt.addGyrData(gyrData, timestamp);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     ros::init(argc, argv, "DMVIO_ros");
     ros::NodeHandle nh;
@@ -270,7 +267,7 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IOWrap::PangolinDSOViewer> viewer;
 
-    if(!disableAllDisplay)
+    if (!disableAllDisplay)
     {
         viewer = std::make_unique<IOWrap::PangolinDSOViewer>(wG[0], hG[0], true, settingsUtil, normalizeCamSize);
     }

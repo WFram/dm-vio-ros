@@ -13,6 +13,9 @@ Contains marginalized points observed by keyframes in the sliding window.
 * `dmvio/global_point_cloud`: **PointCloud2**:
 Contains all the marginalized points.
 
+* `dmvio/image_undistort`: **Image**:
+Each new frame, before it is tracked.
+
 For more information see https://vision.in.tum.de/dm-vio and https://github.com/lukasvst/dm-vio.
 
 This is a ROS-Wrapper for DM-VIO, inspired by the [ROS-Wrapper for DSO](https://github.com/JakobEngel/dso_ros).

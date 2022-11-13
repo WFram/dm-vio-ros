@@ -64,6 +64,37 @@ PoseTransformation::PoseType ROSOutputWrapper::transformPointFixedScale(const Po
     return returning;
 }
 
+//void ROSOutputWrapper::undistortCallback(const sensor_msgs::ImageConstPtr img)
+//{
+//    auto convertStamp = [](const ros::Time &time)
+//    { return time.sec * 1.0 + time.nsec / 1000000000.0; };
+//
+//    double stamp = convertStamp(img->header.stamp);
+//
+//    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+//    assert(cv_ptr->image.type() == CV_8U);
+//    assert(cv_ptr->image.channels() == 1);
+//
+//    //    dso::MinimalImageB minImg((int) cv_ptr->image.cols, (int) cv_ptr->image.rows, (unsigned char *) cv_ptr->image.data);
+//
+//    cv_bridge::CvImage cvImage;
+//    cvImage.encoding = "mono8";
+//    cvImage.image = cv_ptr->image;
+//
+//    sensor_msgs::Image imageMsg;
+//    cvImage.toImageMsg(imageMsg);
+//
+//    dmvioImagePublisher.publish(imageMsg);
+//
+//    // Unfortunately the image message does not contain exposure. This means that you cannot use photometric
+//    // mode 1. But mode 0 will entirely disable the vignette which is far from optimal for fisheye cameras.
+//    // You can use the new mode 3 however which uses vignette, but does not assume that a full photometric
+//    // calibration is available.
+//    // Alternatively, if exposure is published on a different topic you can synchronize them an pass the exposure to
+//    // undistorter->undistort in the next line.
+//    //    std::unique_ptr<dso::ImageAndExposure> undistImg(undistorter->undistort<unsigned char>(&minImg, 1.0, stamp, 1.0f));
+//}
+
 dmvio::ROSOutputWrapper::ROSOutputWrapper()
     : nh("dmvio")
 {
@@ -78,8 +109,9 @@ dmvio::ROSOutputWrapper::ROSOutputWrapper()
     dmvioOdomPublisher = nh.advertise<nav_msgs::Odometry>("pose", 10);
     dmvioLocalPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud2>("local_point_cloud", 1);
     dmvioGlobalPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud2>("global_point_cloud", 1);
-}
 
+    dmvioImagePublisher = nh.advertise<sensor_msgs::Image>("/dmvio/image_undistort", 10);
+}
 
 void ROSOutputWrapper::publishTransformDSOToIMU(const TransformDSOToIMU &transformDSOToIMUPassed)
 {
@@ -128,7 +160,7 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
 {
     dmvio_ros::DMVIOPoseMsg msg;
     msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = "world";
+    msg.header.frame_id = "map";
 
     auto &camToWorld = frame->camToWorld;
 
@@ -196,6 +228,26 @@ void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian 
     dmvioPosePublisher.publish(msg);
 }
 
+void ROSOutputWrapper::pushLiveFrame(dso::FrameHessian *image)
+{
+    cv_bridge::CvImage cvImage;
+    cvImage.encoding = "mono8";
+
+    int cols = 848;
+    int rows = 800;
+    unsigned char *img_data = new unsigned char[cols * rows];
+    for (int i = 0; i < cols * rows; i++)
+        img_data[i] = image->dI[i][0] * 0.8 > 255.0f ? 255.0 : image->dI[i][0] * 0.8;
+    cv::Mat cv_mat_image(rows, cols, CV_8UC1, &img_data[0]);
+    cvImage.image = cv_mat_image;
+
+    sensor_msgs::Image imageMsg;
+    cvImage.toImageMsg(imageMsg);
+    delete [] img_data;
+
+    dmvioImagePublisher.publish(imageMsg);
+}
+
 void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames,
                                         bool final,
                                         dso::CalibHessian *HCalib)
@@ -223,8 +275,11 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
         // Frames in sliding window
         for (dso::FrameHessian *fh: frames)
         {
+            //        dso::FrameHessian *fh = frames.back();
             npoints += fh->pointHessiansMarginalized.size();
 
+            // TODO: 1) check if we need to use pointHessians or pointHessiansMarginalized
+            //
             for (dso::PointHessian *p: fh->pointHessiansMarginalized)
             {
                 Eigen::Vector3d pos_cam, pos_world;
@@ -274,12 +329,12 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
 
     pcl::toROSMsg(local_cloud, msg_local_cloud);
     msg_local_cloud.header.stamp = ros::Time::now();
-    msg_local_cloud.header.frame_id = "world";
+    msg_local_cloud.header.frame_id = "map";
     //    msg_local_cloud.header.frame_id = "camera";
 
     pcl::toROSMsg(global_cloud, msg_global_cloud);
     msg_global_cloud.header.stamp = msg_local_cloud.header.stamp;
-    msg_global_cloud.header.frame_id = "world";
+    msg_global_cloud.header.frame_id = "map";
 
     dmvioLocalPointCloudPublisher.publish(msg_local_cloud);
     dmvioGlobalPointCloudPublisher.publish(msg_global_cloud);

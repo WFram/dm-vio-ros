@@ -26,6 +26,8 @@
 #include <IOWrapper/Output3DWrapper.h>
 #include <mutex>
 
+#include "cv_bridge/cv_bridge.h"
+
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -60,6 +62,7 @@ namespace dmvio
      */
         virtual void publishTransformDSOToIMU(const dmvio::TransformDSOToIMU &transformDSOToIMU) override;
 
+
         /*
      * Usage:
      * Called every time the status of the system changes.
@@ -81,6 +84,10 @@ namespace dmvio
                                       bool final,
                                       dso::CalibHessian *HCalib) override;
 
+        virtual void pushLiveFrame(dso::FrameHessian *image) override;
+
+        void undistortCallback (const sensor_msgs::ImageConstPtr img);
+
         void setFixedScale() { T_FS_DSO.setScale(fixed_scale); }
 
         PoseTransformation::PoseType transformPoseFixedScale(const PoseTransformation::PoseType &pose);
@@ -92,6 +99,9 @@ namespace dmvio
         ros::NodeHandle nh;
         ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
         ros::Publisher dmvioOdomPublisher, dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher;
+
+        ros::Publisher dmvioImagePublisher;
+        ros::Subscriber dmvioImageSubscriber;
 
         pcl::PointCloud<pcl::PointXYZ> global_cloud;
 
