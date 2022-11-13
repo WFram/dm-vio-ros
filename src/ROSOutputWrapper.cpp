@@ -159,7 +159,10 @@ void setTfFromSE3(geometry_msgs::Transform &tfMsg, const Sophus::SE3d &pose)
 void ROSOutputWrapper::publishCamPose(dso::FrameShell *frame, dso::CalibHessian *HCalib)
 {
     dmvio_ros::DMVIOPoseMsg msg;
-    msg.header.stamp = ros::Time::now();
+
+    ros::Time ros_ts;
+    ros_ts.fromSec(frame->timestamp);
+    msg.header.stamp = ros_ts;
     msg.header.frame_id = "map";
 
     auto &camToWorld = frame->camToWorld;
@@ -245,6 +248,9 @@ void ROSOutputWrapper::pushLiveFrame(dso::FrameHessian *image)
     cvImage.toImageMsg(imageMsg);
     delete [] img_data;
 
+    ros::Time ros_ts;
+    ros_ts.fromSec(image->shell->timestamp);
+    imageMsg.header.stamp = ros_ts;
     dmvioImagePublisher.publish(imageMsg);
 }
 
@@ -269,6 +275,7 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
     pcl::PointCloud<pcl::PointXYZ> local_cloud;
 
     long int npoints = 0;
+    double timestamp;
 
     {
         std::unique_lock<std::mutex> lk(mutex);
@@ -324,11 +331,14 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
                 local_cloud.push_back(point_world);
                 global_cloud.push_back(point_world);
             }
+            timestamp = fh->shell->timestamp;
         }
     }
 
     pcl::toROSMsg(local_cloud, msg_local_cloud);
-    msg_local_cloud.header.stamp = ros::Time::now();
+    ros::Time ros_ts;
+    ros_ts.fromSec(timestamp);
+    msg_local_cloud.header.stamp = ros_ts;
     msg_local_cloud.header.frame_id = "map";
     //    msg_local_cloud.header.frame_id = "camera";
 

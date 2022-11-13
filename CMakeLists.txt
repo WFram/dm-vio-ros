@@ -8,6 +8,8 @@ IF (NOT CMAKE_BUILD_TYPE)
 ENDIF ()
 set(BUILD_TYPE RelWithDebInfo)
 
+LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 find_package(catkin REQUIRED COMPONENTS
         cv_bridge
         geometry_msgs
