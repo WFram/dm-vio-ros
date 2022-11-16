@@ -77,10 +77,19 @@ dmvio::ROSOutputWrapper::ROSOutputWrapper()
 
     dmvioImagePublisher = nh.advertise<sensor_msgs::Image>("/dmvio/image_undistort", 10);
 
+    ros::param::get("distanceThreshold", distanceThreshold);
+    ros::param::get("probability", probability);
+    ros::param::get("maxIterations", maxIterations);
+    std::cout << "distanceThreshold: " << distanceThreshold << std::endl;
+    std::cout << "probability: " << probability << std::endl;
+    std::cout << "maxIterations: " << maxIterations << std::endl;
+
     ros::param::get("radiusSearch", radiusSearch);
     ros::param::get("minNeighborsInRadius", minNeighborsInRadius);
+    ros::param::get("minNumPointsToSend", minNumPointsToSend);
     std::cout << "radiusSearch: " << radiusSearch << std::endl;
     std::cout << "minNeighborsInRadius: " << minNeighborsInRadius << std::endl;
+    std::cout << "minNumPointsToSend: " << minNumPointsToSend << std::endl;
 
     poseBuf.clear();
     localPointsBuf.clear();
@@ -393,14 +402,33 @@ void ROSOutputWrapper::publishKeyframes(std::vector<dso::FrameHessian *> &frames
         //        ROS_WARN("Finish sliding window \n");
     }
 
-    pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
+    //    pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
+    //    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_local_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    //    outrem.setInputCloud(local_cloud);
+    //    // TODO: set as ROS params
+    //    outrem.setRadiusSearch(radiusSearch);
+    //    outrem.setMinNeighborsInRadius(minNeighborsInRadius);
+    //    outrem.setKeepOrganized(true);
+    //    outrem.filter(*filtered_local_cloud);
+
+    std::vector<int> inliers;
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_local_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    outrem.setInputCloud(local_cloud);
-    // TODO: set as ROS params
-    outrem.setRadiusSearch(radiusSearch);
-    outrem.setMinNeighborsInRadius(minNeighborsInRadius);
-    outrem.setKeepOrganized(true);
-    outrem.filter(*filtered_local_cloud);
+    //    pcl::SampleConsensusModelLine<pcl::PointXYZ>::Ptr model_l(new pcl::SampleConsensusModelLine<pcl::PointXYZ>(local_cloud));
+    pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(local_cloud));
+    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model_p);
+    //    ransac.setDistanceThreshold(0.01);
+    ransac.setDistanceThreshold(distanceThreshold);
+    //    ransac.setProbability(probability);
+    //    ransac.setMaxIterations(maxIterations);
+    ransac.computeModel();
+    ransac.getInliers(inliers);
+    pcl::copyPointCloud(*local_cloud, inliers, *filtered_local_cloud);
+
+    if (filtered_local_cloud->size() < minNumPointsToSend)
+    {
+        ROS_WARN("Not enough points");
+        return;
+    }
 
     pcl::toROSMsg(*filtered_local_cloud, msg_local_cloud);
     ros::Time ros_ts;

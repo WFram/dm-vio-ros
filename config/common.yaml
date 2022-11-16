@@ -1,4 +1,11 @@
+minNumPointsToSend: 1
+
+# RANSAC parameters
+distanceThreshold: 0.01
+probability: 0.99  # NOT IN USE
+maxIterations: 1000  # NOT IN USE
+
 # RadiusOutlierRemoval settings
-# GOOD SETTINGS: (10, 0.4); (5, 0.2)
-minNeighborsInRadius: 10
+# GOOD SETTINGS (minNeighborsInRadius, radiusSearch): (10, 0.4); (5, 0.2)
+minNeighborsInRadius: 5
 radiusSearch: 0.4

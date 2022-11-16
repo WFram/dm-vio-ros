@@ -32,6 +32,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/sample_consensus/sac_model_line.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -118,6 +121,12 @@ namespace dmvio
         ros::Subscriber dmvioImageSubscriber;
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr global_cloud;
+        int minNumPointsToSend;
+
+        // RANSAC parameters
+        double distanceThreshold;
+        double probability;
+        int maxIterations;
 
         // RadiusOutlierRemoval parameters
         double radiusSearch;
