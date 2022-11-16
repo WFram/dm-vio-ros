@@ -24,16 +24,24 @@
 #define DMVIO_ROS_ROSOUTPUTWRAPPER_H
 
 #include <IOWrapper/Output3DWrapper.h>
+#include <TicToc.h>
 #include <mutex>
 
 #include "cv_bridge/cv_bridge.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
+
+#include <geometry_msgs/Point32.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/Int32.h>
 
 #include <GTSAMIntegration/PoseTransformation.h>
 #include <GTSAMIntegration/PoseTransformationIMU.h>
@@ -76,6 +84,7 @@ namespace dmvio
      * Calling:
      * Always called, no overhead if not used.
      */
+
         virtual void publishCamPose(dso::FrameShell *frame, dso::CalibHessian *HCalib) override;
 
         // In case you want to additionally publish pointclouds or keyframe poses you need to override Output3DWrapper::publishKeyframes
@@ -86,7 +95,11 @@ namespace dmvio
 
         virtual void pushLiveFrame(dso::FrameHessian *image) override;
 
-        void undistortCallback (const sensor_msgs::ImageConstPtr img);
+//        virtual void publishPoseAndPoints(dso::FrameHessian *fh, dso::CalibHessian *HCalib) override;
+
+        void publishOutput();
+
+        void undistortCallback(const sensor_msgs::ImageConstPtr img);
 
         void setFixedScale() { T_FS_DSO.setScale(fixed_scale); }
 
@@ -98,12 +111,23 @@ namespace dmvio
     private:
         ros::NodeHandle nh;
         ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
-        ros::Publisher dmvioOdomPublisher, dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher;
+        ros::Publisher dmvioOdomHighFreqPublisher, dmvioOdomLowFreqPublisher;
+        ros::Publisher dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher;
 
         ros::Publisher dmvioImagePublisher;
         ros::Subscriber dmvioImageSubscriber;
 
-        pcl::PointCloud<pcl::PointXYZ> global_cloud;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr global_cloud;
+
+        // RadiusOutlierRemoval parameters
+        double radiusSearch;
+        int minNeighborsInRadius;
+
+        std::map<int, bool> check_existed;
+        std::map<double, bool> m_timestamps;
+
+        std::deque<nav_msgs::Odometry> poseBuf;
+        std::deque<sensor_msgs::PointCloud2> localPointsBuf, globalPointsBuf;
 
         tf2_ros::TransformBroadcaster dmvioWcamBr;
 
@@ -116,6 +140,9 @@ namespace dmvio
 
         // Protects transformDSOToIMU.
         std::mutex mutex;
+
+        // Protects queues
+        std::mutex poseMutex, pclMutex;
 
         std::unique_ptr<dmvio::TransformDSOToIMU> transformDSOToIMU;
         bool scaleAvailable = false;// True iff transformDSOToIMU contains a valid scale.

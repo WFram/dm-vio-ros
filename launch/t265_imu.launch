@@ -1,5 +1,7 @@
 <launch>
-    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=1 useimu=1 quiet=1 mode=3 calib=/home/itmo/dm_vio_ws/src/dm-vio-ros/config/t265/dm_vio_t265_results.txt imuCalib=/home/itmo/dm_vio_ws/src/dm-vio-ros/config/t265/factory_camchain.yaml gamma=/home/itmo/dm-vio/configs/pcalib_linear_8bit.txt vignette=/home/itmo/dm-vio/configs/realsense/vignette_t265.png settingsFile=/home/itmo/dm-vio/configs/t265_noise_tumvi.yaml resultsPrefix=/home/itmo/dm_vio_ws/src/dm-vio-ros/output/ cam0/image_raw:=/camera/fisheye1/image_raw imu0:=/camera/imu" />
+
+    <rosparam command="load" file="/home/wfram/dm_vio_ws/src/dm-vio-ros/config/common.yaml" />
+    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=1 useimu=1 quiet=1 mode=3 calib=$(find dmvio_ros)/config/t265/dm_vio_t265_results.txt imuCalib=$(find dmvio_ros)/config/t265/factory_camchain.yaml gamma=/home/wfram/dm-vio/configs/pcalib_linear_8bit.txt vignette=/home/wfram/dm-vio/configs/realsense/vignette_t265.png settingsFile=/home/wfram/dm-vio/configs/t265_noise_tumvi.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/camera/fisheye1/image_raw imu0:=/camera/imu" />
 
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dmvio_ros)/rviz/t265_config.rviz" />
 </launch>

@@ -102,8 +102,11 @@ void run(IOWrap::PangolinDSOViewer *viewer)
     int ii = 0;
     int lastResetIndex = 0;
 
+    ros::Rate r(30);
+
     while (!stopSystem)
     {
+        auto ticToc = new TicToc;
         // Skip the first few frames if the start variable is set.
         if (start > 0 && ii < start)
         {
@@ -154,6 +157,14 @@ void run(IOWrap::PangolinDSOViewer *viewer)
         }
 
         ++ii;
+
+        // Here for all accumulated poses and PCL publish
+        // sleep here
+        rosOutput.publishOutput();
+        //        r.sleep();
+
+        //        ROS_WARN("Time of loop: %f", ticToc->toc());
+        delete ticToc;
     }
 
     fullSystem->blockUntilMappingIsFinished();

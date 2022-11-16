@@ -4,7 +4,7 @@
 This is a fork of https://github.com/lukasvst/dm-vio-ros. It adds publishing point cloud and
 poses in fixed metric scale:
 
-* `dmvio/pose`: **Odometry**:
+* `dmvio/pose_hf`: **Odometry**:
 These poses are the transformations from camera to world (in fixed metric scale). The scale is fixed once available.
 
 * `dmvio/local_point_cloud`: **PointCloud2**:
