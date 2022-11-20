@@ -31,9 +31,12 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/sample_consensus/sac_model_parallel_plane.h>
+#include <pcl/sample_consensus/sac_model_perpendicular_plane.h>
 #include <pcl/sample_consensus/sac_model_line.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
@@ -120,8 +123,12 @@ namespace dmvio
         ros::Publisher dmvioImagePublisher;
         ros::Subscriber dmvioImageSubscriber;
 
+        pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+
         pcl::PointCloud<pcl::PointXYZ>::Ptr global_cloud;
         int minNumPointsToSend;
+        bool useRANSAC;
 
         // RANSAC parameters
         double distanceThreshold;
@@ -131,6 +138,10 @@ namespace dmvio
         // RadiusOutlierRemoval parameters
         double radiusSearch;
         int minNeighborsInRadius;
+
+        // StatisticalOutlierRemoval parameters
+        int meanK;
+        double stddevMulThresh;
 
         std::map<int, bool> check_existed;
         std::map<double, bool> m_timestamps;
