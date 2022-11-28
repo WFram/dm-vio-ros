@@ -194,6 +194,8 @@ double convertStamp(const ros::Time &time)
 
 void vidCb(const sensor_msgs::ImageConstPtr img)
 {
+    //    double td = -0.003;
+    //    double stamp = convertStamp(img->header.stamp) + td;
     double stamp = convertStamp(img->header.stamp);
 
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);

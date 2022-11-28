@@ -32,12 +32,14 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/conditional_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/sample_consensus/sac_model_parallel_plane.h>
 #include <pcl/sample_consensus/sac_model_perpendicular_plane.h>
 #include <pcl/sample_consensus/sac_model_line.h>
+#include <pcl/segmentation/extract_clusters.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -54,6 +56,8 @@
 
 namespace dmvio
 {
+    typedef pcl::PointCloud<pcl::PointXYZ> PointCloudXYZ;
+    typedef pcl::PointCloud<pcl::PointXYZINormal> PointCloudXYZINormal;
 
     // We publish 3 topics by default:
     // dmvio/frame_tracked: DMVIOPoseMsg
@@ -118,15 +122,18 @@ namespace dmvio
         ros::NodeHandle nh;
         ros::Publisher dmvioPosePublisher, systemStatePublisher, unscaledPosePublisher, metricPosePublisher;
         ros::Publisher dmvioOdomHighFreqPublisher, dmvioOdomLowFreqPublisher;
-        ros::Publisher dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher;
+        ros::Publisher dmvioLocalPointCloudPublisher, dmvioGlobalPointCloudPublisher, dmvioReferencePointCloudPublisher;
 
         ros::Publisher dmvioImagePublisher;
         ros::Subscriber dmvioImageSubscriber;
 
-        pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
+        pcl::RadiusOutlierRemoval<pcl::PointXYZINormal> outrem;
         pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 
-        pcl::PointCloud<pcl::PointXYZ>::Ptr global_cloud;
+        PointCloudXYZINormal::Ptr global_cloud;
+        PointCloudXYZINormal::Ptr reference_cloud;
+        std::deque<PointCloudXYZINormal::Ptr> margin_cloud_window;
+        double lastTimestamp;
         int minNumPointsToSend;
         bool useRANSAC;
 
@@ -136,18 +143,26 @@ namespace dmvio
         int maxIterations;
 
         // RadiusOutlierRemoval parameters
-        double radiusSearch;
-        int minNeighborsInRadius;
+        double activeRadiusSearch, marginRadiusSearch;
+        int activeMinNeighborsInRadius, marginMinNeighborsInRadius;
 
         // StatisticalOutlierRemoval parameters
         int meanK;
         double stddevMulThresh;
+
+        // Clustering parameters
+        double clusterTolerance;
+        int minClusterSize;
+        int maxClusterSize;
+
+        long int pub_idx = 0;
 
         std::map<int, bool> check_existed;
         std::map<double, bool> m_timestamps;
 
         std::deque<nav_msgs::Odometry> poseBuf;
         std::deque<sensor_msgs::PointCloud2> localPointsBuf, globalPointsBuf;
+        std::deque<sensor_msgs::PointCloud2> referencePointsBuf;
 
         tf2_ros::TransformBroadcaster dmvioWcamBr;
 

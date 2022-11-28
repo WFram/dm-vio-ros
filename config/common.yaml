@@ -7,9 +7,15 @@ probability: 0.99  # NOT IN USE
 maxIterations: 1000  # NOT IN USE
 
 # RadiusOutlierRemoval settings
-minNeighborsInRadius: 8
-radiusSearch: 0.2
-
+activeMinNeighborsInRadius: 8
+activeRadiusSearch: 0.2
+marginMinNeighborsInRadius: 8
+marginRadiusSearch: 0.2
 # StatisticalOutlierRemoval settings
 meanK: 10
 stddevMulThresh: 0.01
+
+# Clustering parameters
+clusterTolerance: 0.2 # 0.02
+minClusterSize: 35
+maxClusterSize: 5000
