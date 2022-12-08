@@ -1,0 +1,8 @@
+<launch>
+
+    <rosparam command="load" file="$(find dmvio_ros)/config/common.yaml" />
+<!--    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=0 useimu=1 quiet=1 mode=1 calib=$(find dmvio_ros)/config/ford_av/camera_center_pinhole.txt imuCalib=$(find dmvio_ros)/config/ford_av/camchain_center.yaml settingsFile=$(find dmvio_ros)/config/ford_av/imu.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/camera/image_raw imu0:=/imu/data_raw" />-->
+    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=0 useimu=1 quiet=1 mode=1 calib=$(find dmvio_ros)/config/ford_av/camera_fl_pinhole.txt imuCalib=$(find dmvio_ros)/config/ford_av/camchain_fl_pinhole.yaml settingsFile=$(find dmvio_ros)/config/ford_av/imu.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/camera/image_raw imu0:=/imu" />
+
+<!--    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dmvio_ros)/rviz/zed2_config.rviz" />-->
+</launch>

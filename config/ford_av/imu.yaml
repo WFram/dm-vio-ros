@@ -1,15 +1,8 @@
-# DEMO config
-#accelerometer_noise_density: 0.0016 # GOOD: 0.0224 # WORKED TILL 26.11: 0.04641977329563476 # ORIGIN: 0.04641977329563476
-#gyroscope_noise_density: 0.00139626 # GOOD: 0.01280 # WORKED TILL 26.11: 0.013213877349668923 # ORIGIN: 0.013213877349668923
-#accelerometer_random_walk: 0.002509 # GOOD: 0.00430 # WORKED TILL 26.11: 0.019703618139556927 # ORIGIN: 0.0019703618139556927
-#gyroscope_random_walk: 0.000033989 # GOOD: 0.00110 # WORKED TILL 26.11: 2.206282069791498e-04 # ORIGIN: 2.206282069791498e-05
-#integration_sigma: 0.316227 # 0.316227 TODO: ?
-
-accelerometer_noise_density: 0.0224 # GOOD: 0.0224 # WORKED TILL 26.11: 0.04641977329563476 # ORIGIN: 0.04641977329563476
-gyroscope_noise_density: 0.01280 # GOOD: 0.01280 # WORKED TILL 26.11: 0.013213877349668923 # ORIGIN: 0.013213877349668923
-accelerometer_random_walk: 0.00430 # GOOD: 0.00430 # WORKED TILL 26.11: 0.019703618139556927 # ORIGIN: 0.0019703618139556927
-gyroscope_random_walk: 0.00110 # GOOD: 0.00110 # WORKED TILL 26.11: 2.206282069791498e-04 # ORIGIN: 2.206282069791498e-05
-integration_sigma: 0.316227 # 0.316227 TODO: ?
+accelerometer_noise_density: 0.001 # 0.224 0.1
+gyroscope_noise_density: 0.000001 # 0.0128 0.1
+accelerometer_random_walk: 0.001  # 0.043  0.0001
+gyroscope_random_walk: 0.0001  # 0.0011  0.0001
+integration_sigma: 0.626227 # 0.316227 TODO: ?
 
 normalizeCamSize: 1.5               # Sets the size of the displayed camera (normalized with the scale obtained from IMU data).
 
@@ -18,10 +11,11 @@ normalizeCamSize: 1.5               # Sets the size of the displayed camera (nor
 setting_weightZeroPriorDSOInitY: 5e09
 setting_weightZeroPriorDSOInitX: 5e09
 setting_forceNoKFTranslationThresh: 0.01
+
 #init_transitionModel: 2 # mode 4 doesn't work; mode 1, 2 don't fix the scale; mode 5 causes tracking failure
 #init_pgba_reinitScaleUncertaintyThresh: 1e6 # 1e6
 #init_scalePriorAfterInit: 1.0 # This is a DEVIATION, not a prior scale value
-maxTimeBetweenInitFrames: 2.0 # Reset the visual initializer if this time has passed between the first and last frame.
+#maxTimeBetweenInitFrames: 0.1 # Reset the visual initializer if this time has passed between the first and last frame.
 #baToCoarseAccBiasVariance: 0.05
 #baToCoarseGyrBiasVariance: 0.05
 

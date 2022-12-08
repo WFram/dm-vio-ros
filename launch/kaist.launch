@@ -1,0 +1,7 @@
+<launch>
+
+    <rosparam command="load" file="$(find dmvio_ros)/config/common.yaml" />
+    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=0 useimu=1 quiet=1 mode=1 calib=$(find dmvio_ros)/config/kaist/camera_radtan.txt imuCalib=$(find dmvio_ros)/config/kaist/camchain.yaml settingsFile=$(find dmvio_ros)/config/kaist/imu.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/stereo/left/image_raw imu0:=/imu/data_raw" />
+
+<!--    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dmvio_ros)/rviz/zed2_config.rviz" />-->
+</launch>

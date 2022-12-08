@@ -29,16 +29,16 @@
 
 #include "cv_bridge/cv_bridge.h"
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 #include <pcl/sample_consensus/ransac.h>
-#include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/sample_consensus/sac_model_line.h>
 #include <pcl/sample_consensus/sac_model_parallel_plane.h>
 #include <pcl/sample_consensus/sac_model_perpendicular_plane.h>
-#include <pcl/sample_consensus/sac_model_line.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
@@ -105,7 +105,7 @@ namespace dmvio
 
         virtual void pushLiveFrame(dso::FrameHessian *image) override;
 
-//        virtual void publishPoseAndPoints(dso::FrameHessian *fh, dso::CalibHessian *HCalib) override;
+        //        virtual void publishPoseAndPoints(dso::FrameHessian *fh, dso::CalibHessian *HCalib) override;
 
         void publishOutput();
 
@@ -117,6 +117,11 @@ namespace dmvio
 
         PoseTransformation::PoseType transformPointFixedScale(const PoseTransformation::PoseType &pose,
                                                               Eigen::Vector3d &point_cam);
+
+        PoseTransformation::PoseType invTransformPointFixedScale(const PoseTransformation::PoseType &pose,
+                                                                 Eigen::Vector3d &point_world);
+
+        PoseTransformation::PoseType transformPointFakeCam(Eigen::Vector3d &point_cam);
 
     private:
         ros::NodeHandle nh;
@@ -164,7 +169,9 @@ namespace dmvio
         std::deque<sensor_msgs::PointCloud2> localPointsBuf, globalPointsBuf;
         std::deque<sensor_msgs::PointCloud2> referencePointsBuf;
 
-        tf2_ros::TransformBroadcaster dmvioWcamBr;
+        tf2_ros::TransformBroadcaster dmvioWcamBr, dmvioFakeCamBr;
+
+        Sophus::SE3d T_fake_cam;
 
         double fixed_scale = 1.0;
         Sophus::Sim3d T_FS_DSO;

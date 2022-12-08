@@ -202,6 +202,7 @@ void vidCb(const sensor_msgs::ImageConstPtr img)
     assert(cv_ptr->image.type() == CV_8U);
     assert(cv_ptr->image.channels() == 1);
 
+    // Creates a minimal image. Data is stored as an array which contains unsigned chars (intensity values)
     MinimalImageB minImg((int) cv_ptr->image.cols, (int) cv_ptr->image.rows, (unsigned char *) cv_ptr->image.data);
     // Unfortunately the image message does not contain exposure. This means that you cannot use photometric
     // mode 1. But mode 0 will entirely disable the vignette which is far from optimal for fisheye cameras.

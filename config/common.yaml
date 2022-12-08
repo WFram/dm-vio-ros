@@ -2,13 +2,13 @@ minNumPointsToSend: 100
 useRANSAC: false
 
 # RANSAC parameters
-distanceThreshold: 0.01 # 0.01
+distanceThreshold: 0.1 # 0.01
 probability: 0.99  # NOT IN USE
 maxIterations: 1000  # NOT IN USE
 
 # RadiusOutlierRemoval settings
-activeMinNeighborsInRadius: 8
-activeRadiusSearch: 0.2
+activeMinNeighborsInRadius: 8 # 8
+activeRadiusSearch: 0.2 # 0.2
 marginMinNeighborsInRadius: 8
 marginRadiusSearch: 0.2
 # StatisticalOutlierRemoval settings

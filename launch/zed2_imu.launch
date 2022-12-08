@@ -1,7 +1,7 @@
 <launch>
 
     <rosparam command="load" file="$(find dmvio_ros)/config/common.yaml" />
-    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=0 useimu=1 quiet=1 mode=1 calib=$(find dmvio_ros)/config/zed2/camera_zed2_radtan.txt imuCalib=$(find dmvio_ros)/config/zed2/camchain_zed2_radtan.yaml gamma=/home/wfram/dm-vio/configs/pcalib_linear_8bit.txt vignette=/home/wfram/dm_vio_ws/src/dm-vio-ros/config/zed2/vignette.png settingsFile=$(find dmvio_ros)/config/zed2/imu.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/zed2/zed_node/left/image_rect_color imu0:=/zed2/zed_node/imu/data" />
+    <node pkg="dmvio_ros" type="node" name="dm_vio_node" output="screen" args="nogui=1 useimu=1 quiet=1 mode=1 calib=$(find dmvio_ros)/config/zed2/camera_zed2_radtan.txt imuCalib=$(find dmvio_ros)/config/zed2/camchain_zed2_radtan.yaml gamma=/home/wfram/dm-vio/configs/pcalib_linear_8bit.txt vignette=/home/wfram/dm_vio_ws/src/dm-vio-ros/config/zed2/vignette.png settingsFile=$(find dmvio_ros)/config/zed2/imu.yaml resultsPrefix=$(find dmvio_ros)/output/ cam0/image_raw:=/zed2/zed_node/left/image_rect_gray imu0:=/zed2/zed_node/imu/data" />
 
-<!--    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dmvio_ros)/rviz/zed2_config.rviz" />-->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dmvio_ros)/rviz/zed2_config.rviz" />
 </launch>
